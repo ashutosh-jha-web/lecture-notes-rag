@@ -1,0 +1,17 @@
+# Python environment
+.venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Generated RAG data
+backend/data/uploads/*
+backend/data/faiss_index/*
+backend/eval/results.jsonl

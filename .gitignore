@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Local data and indexes
+backend/data/
+backend/uploads/
+
+# Evaluation logs and backups
+backend/eval/results.jsonl
+backend/eval/results_backup_*.jsonl
+backend/app/ragas_evaluator.py.bak
+
+# Generated TypeScript build cache
+*.tsbuildinfo
+
+# Local frontend environment
+frontend/env.local
+frontend/.env.local
+
+# Local evaluation output and generated test results
+backend/eval/results*.jsonl
+backend/eval/questions.jsonl
+backend/eval/test_results.jsonl
+backend/backend/eval/

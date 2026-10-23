@@ -1,0 +1,23 @@
+RETRIEVAL EVALUATION REPORT
+============================================================
+Questions evaluated: 2
+Initial retrieval candidates: 12
+Final evaluation cutoff: 4
+
+Baseline Mean Precision@4: 0.3750
+Reranked Mean Precision@4: 0.3750
+Precision@4 change:         +0.0000
+
+Baseline MRR:                 1.0000
+Reranked MRR:                 1.0000
+MRR change:                   +0.0000
+
+PER-QUESTION RESULTS
+------------------------------------------------------------
+Question: Summarize what is NLP
+  Precision@4: 0.500 -> 0.500
+  Reciprocal rank: 1.000 -> 1.000
+
+Question: What is TF-IDF and how does it represent text?
+  Precision@4: 0.250 -> 0.250
+  Reciprocal rank: 1.000 -> 1.000
