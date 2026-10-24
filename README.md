@@ -132,18 +132,19 @@ cd lecture-notes-rag
 
 ### 2. Configure the backend
 
+From the repository root:
+
 ```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 Create a local environment file:
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
 Edit `backend/.env` and set your API key and model configuration. Never commit real API keys.
@@ -175,9 +176,8 @@ The embedding and reranking models are downloaded locally when first needed. The
 From the repository root:
 
 ```bash
-cd backend
 source .venv/bin/activate
-PYTHONPATH=. python -m uvicorn app.main:app --reload
+PYTHONPATH=backend python -m uvicorn app.main:app --app-dir backend --reload
 ```
 
 The API should be available at:

@@ -631,7 +631,17 @@ async def ask_question(
         append_evaluation(record)
     except Exception:
         logger.exception("Could not append the pending evaluation record.")
-
+        return {
+            "answer": result["answer"],
+            "sources": result["sources"],
+            "route": route,
+            "evaluation": {
+                "status": "logging_failed",
+                "faithfulness": None,
+                "answer_relevancy": None,
+                "context_precision": None,
+            },
+        }
     contexts = [
         doc.page_content
         for doc in docs
@@ -784,6 +794,24 @@ async def ask_question_stream(
                 logger.exception(
                     "Could not append the pending evaluation record."
                 )
+                yield (
+                    "event: done\ndata: "
+                    + json.dumps(
+                        {
+                            "sources": extract_citations(docs),
+                            "route": route,
+                            "evaluation": {
+                                "status": "logging_failed",
+                                "faithfulness": None,
+                                "answer_relevancy": None,
+                                "context_precision": None,
+                            },
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n\n"
+                )
+                return
 
             contexts = [
                 doc.page_content

@@ -7,7 +7,7 @@ Questions evaluated = 3
 QUESTION: What is TF-IDF and how does it represent text?
 ====================================================================================================
 
-BEFORE RERANKING: 12 FAISS candidates
+TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
   Rank: 1
   Source: NLP_Detailed_Notes.pdf
@@ -38,48 +38,6 @@ BEFORE RERANKING: 12 FAISS candidates
   Page: 2
   Chunk ID: CHK-3
   Excerpt: • Summarization and translation: transform text while preserving key meaning. • Generation and dialogue: produce contextually appropriate text. An NLP system usually includes data preparation, tokenization, representation, modeling, task-specific decoding, evaluation, and error analysis. For factual applications, grounding answers in retrieved evid
-
-  Rank: 6
-  Source: Lecture_Notes_RAG_Folder_and_Code_Explanation_Guide.pdf
-  Page: 8
-  Chunk ID: CHK-29
-  Excerpt: Lecture Notes Q&A — Folder & Code Explanation Page 8 • 413: upload too large. • 409: required document/index not ready. • 500: unexpected server failure. Metadata Metadata is data about a chunk, such as source filename, page, chunk ID, and character start offset. It is essential for citations and debugging. Embedding vs generation Embedding convert
-
-  Rank: 7
-  Source: NLP_Detailed_Notes.pdf
-  Page: 4
-  Chunk ID: CHK-14
-  Excerpt: abstention policies can reduce risk, but all have limitations. 10. Building an NLP Project • Define task and label policy before collecting data. • Create representative splits and prevent duplicates from leaking across them. • Start with a simple baseline such as TF-IDF plus logistic regression. • Analyze errors by class, length, domain, language,
-
-  Rank: 8
-  Source: sample.pdf
-  Page: 2
-  Chunk ID: CHK-5
-  Excerpt: 5. Retrieval-Augmented Generation (RAG) Retrieval-Augmented Generation combines information retrieval with language generation. First, the system searches a document collection for passages relevant to a user question. It then provides those passages as context to a language model, which generates an answer. A typical RAG pipeline includes document
-
-  Rank: 9
-  Source: NLP_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-2
-  Excerpt: Detailed study notes • Educational reference Page 2 1. NLP Foundations and Tasks Natural Language Processing (NLP) develops methods for analyzing and generating human language. Language is ambiguous, context-dependent, and variable across domains, dialects, and writing styles. • Text classification: sentiment, topic, intent, spam, and safety labels
-
-  Rank: 10
-  Source: NLP_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-4
-  Excerpt: Lowercasing, stemming, lemmatization Lowercasing reduces vocabulary variation but can erase acronym or proper-name signals. Stemming crudely strips affixes and may produce nonwords. Lemmatization uses linguistic information to map a word to a base form, such as 'was' to 'be'. Stop-word removal can harm sentiment, negation, question answering, and c
-
-  Rank: 11
-  Source: NLP_Detailed_Notes.pdf
-  Page: 3
-  Chunk ID: CHK-7
-  Excerpt: Detailed study notes • Educational reference Page 3 Static embeddings Word2Vec learns word vectors from local context using CBOW or Skip-gram objectives. GloVe uses global co-occurrence statistics. Static embeddings assign one vector per word and therefore do not directly represent context-dependent meanings of ambiguous words. 5. Classical NLP Mod
-
-  Rank: 12
-  Source: Lecture_Notes_RAG_Folder_and_Code_Explanation_Guide.pdf
-  Page: 4
-  Chunk ID: CHK-12
-  Excerpt: overlapping pieces. Document( page_content="Text extracted from this PDF page...", metadata={"source":"notes.pdf", "page":4} ) page_content is the text to search. metadata is structured information about that text. When chunks are created, add chunk_id, chunk_index, and start_index. The metadata must travel with the chunk all the way through retrie
 
 AFTER RERANKING: 4 selected chunks
 
@@ -113,7 +71,7 @@ Before      After       Change            Source / Page / Chunk ID
 ----------------------------------------------------------------------------------------------------
 1           1           Unchanged         NLP_Detailed_Notes.pdf / page 2 / CHK-6
 3           2           Improved +1       NLP_Detailed_Notes.pdf / page 2 / CHK-5
-11          3           Improved +8       NLP_Detailed_Notes.pdf / page 3 / CHK-7
+9           3           Improved +6       NLP_Detailed_Notes.pdf / page 3 / CHK-7
 2           4           Dropped -2        NLP_Detailed_Notes.pdf / page 5 / CHK-15
 
 SUMMARY
@@ -134,7 +92,7 @@ Compare the excerpts with the question. Verify whether the most relevant chunks 
 QUESTION: Explain how convolutional neural networks extract features from images.
 ====================================================================================================
 
-BEFORE RERANKING: 12 FAISS candidates
+TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
   Rank: 1
   Source: Deep_Learning_Detailed_Notes.pdf
@@ -165,48 +123,6 @@ BEFORE RERANKING: 12 FAISS candidates
   Page: 5
   Chunk ID: CHK-15
   Excerpt: 4. What learning-curve pattern suggests overfitting? 5. How do shared filters help CNNs? 6. Why can vanilla RNNs struggle with long sequences? 7. Explain queries, keys, and values. 8. Compare encoder-only, decoder-only, and encoder-decoder models. 9. Compare feature extraction and full fine-tuning. 10. Name three checks before deployment.
-
-  Rank: 6
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 1
-  Chunk ID: CHK-1
-  Excerpt: Detailed study notes • Educational reference Page 1 Deep Learning — Detailed Study Notes Neural networks • Optimization • CNNs • Sequence models • Transformers How to study these notes Read each concept, make a one-page summary, then test yourself using the review questions at the end. Where code is shown, run it on a small dataset and compare resu
-
-  Rank: 7
-  Source: sample.pdf
-  Page: 2
-  Chunk ID: CHK-2
-  Excerpt: Sample Machine Learning Lecture Notes Page 2 1. What is Machine Learning? Machine learning is a field of computing in which a system learns patterns from examples instead of relying only on rules written by a programmer. A training dataset contains examples that help a model estimate a relationship between inputs and outputs. A model is useful when
-
-  Rank: 8
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-3
-  Excerpt: A network has parameters (weights and biases) learned from data. Its architecture defines how layers connect. Capacity grows with parameter count and architecture, but more capacity does not guarantee better real-world performance. 2. Forward Pass, Loss, and Backpropagation The forward pass computes predictions. A loss compares predictions with tar
-
-  Rank: 9
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-4
-  Excerpt: • Contrastive or ranking losses when similarity or ordering is the goal. Batch gradient descent uses the whole dataset per update; stochastic gradient descent uses one example; mini-batch gradient descent uses a subset and is standard in practice. The learning rate controls step size. Too high can cause divergence; too low can make training very sl
-
-  Rank: 10
-  Source: Machine_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-2
-  Excerpt: Detailed study notes • Educational reference Page 2 1. Machine Learning Foundations Machine learning (ML) uses data to learn patterns for prediction or decision-making. A practical workflow is: define the task and metric, collect representative data, inspect and clean it, split the data, build a baseline, train candidate models, tune on validation
-
-  Rank: 11
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 3
-  Chunk ID: CHK-10
-  Excerpt: values carry information to combine. Transformer components • Token embeddings map token IDs to vectors; positional information encodes order. • Multi-head attention learns multiple relation patterns in parallel. • Feed-forward layers transform each token representation. • Residual connections and layer normalization support stable deep training. •
-
-  Rank: 12
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-5
-  Excerpt: gradient update and is common in transformer training. Schedules and stability • Warmup gradually raises the learning rate early in training. • Step decay reduces learning rate at milestones; cosine decay reduces it smoothly. • Gradient clipping limits exploding gradients. • Early stopping halts training when validation performance no longer improv
 
 AFTER RERANKING: 4 selected chunks
 
@@ -261,122 +177,80 @@ Compare the excerpts with the question. Verify whether the most relevant chunks 
 QUESTION: What is the difference between machine learning and deep learning?
 ====================================================================================================
 
-BEFORE RERANKING: 12 FAISS candidates
+TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
   Rank: 1
-  Source: sample.pdf
-  Page: 2
-  Chunk ID: CHK-2
-  Excerpt: Sample Machine Learning Lecture Notes Page 2 1. What is Machine Learning? Machine learning is a field of computing in which a system learns patterns from examples instead of relying only on rules written by a programmer. A training dataset contains examples that help a model estimate a relationship between inputs and outputs. A model is useful when
-
-  Rank: 2
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 2
   Chunk ID: CHK-2
   Excerpt: Detailed study notes • Educational reference Page 2 1. Deep Learning Foundations Deep learning uses neural networks with multiple layers to learn representations. A neuron computes z = wIx + b and output a = φ(z), where φ is a nonlinear activation. Without nonlinear activations, stacked linear layers collapse into one linear transformation. Activat
 
-  Rank: 3
+  Rank: 2
   Source: Machine_Learning_Detailed_Notes.pdf
   Page: 2
   Chunk ID: CHK-2
   Excerpt: Detailed study notes • Educational reference Page 2 1. Machine Learning Foundations Machine learning (ML) uses data to learn patterns for prediction or decision-making. A practical workflow is: define the task and metric, collect representative data, inspect and clean it, split the data, build a baseline, train candidate models, tune on validation
 
-  Rank: 4
+  Rank: 3
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 3
   Chunk ID: CHK-8
   Excerpt: images. Early layers may detect edges and textures; deeper layers combine features into more complex patterns. Convolution details • Kernel/filter: learned weights applied over local regions. • Stride: distance the filter moves per step. • Padding: treatment of borders and output dimensions. • Pooling: downsamples feature maps, often by max or aver
 
-  Rank: 5
+  Rank: 4
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 2
   Chunk ID: CHK-3
   Excerpt: A network has parameters (weights and biases) learned from data. Its architecture defines how layers connect. Capacity grows with parameter count and architecture, but more capacity does not guarantee better real-world performance. 2. Forward Pass, Loss, and Backpropagation The forward pass computes predictions. A loss compares predictions with tar
 
-  Rank: 6
+  Rank: 5
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 1
   Chunk ID: CHK-1
   Excerpt: Detailed study notes • Educational reference Page 1 Deep Learning — Detailed Study Notes Neural networks • Optimization • CNNs • Sequence models • Transformers How to study these notes Read each concept, make a one-page summary, then test yourself using the review questions at the end. Where code is shown, run it on a small dataset and compare resu
 
-  Rank: 7
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 5
-  Chunk ID: CHK-14
-  Excerpt: Detailed study notes • Educational reference Page 5 Glossary Activation — Nonlinear function applied to layer values Backpropagation — Chain-rule procedure for computing gradients Batch size — Examples per gradient update Embedding — Learned vector representation Epoch — One pass through training data Fine-tuning — Adapting pretrained weights to a
-
-  Rank: 8
-  Source: Machine_Learning_Detailed_Notes.pdf
-  Page: 1
-  Chunk ID: CHK-1
-  Excerpt: Detailed study notes • Educational reference Page 1 Machine Learning — Detailed Study Notes Foundations • Algorithms • Evaluation • Practical workflows How to study these notes Read each concept, make a one-page summary, then test yourself using the review questions at the end. Where code is shown, run it on a small dataset and compare results agai
-
-  Rank: 9
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-4
-  Excerpt: • Contrastive or ranking losses when similarity or ordering is the goal. Batch gradient descent uses the whole dataset per update; stochastic gradient descent uses one example; mini-batch gradient descent uses a subset and is standard in practice. The learning rate controls step size. Too high can cause divergence; too low can make training very sl
-
-  Rank: 10
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 3
-  Chunk ID: CHK-7
-  Excerpt: Detailed study notes • Educational reference Page 3 • Data augmentation creates plausible training variations, such as image crops or flips where labels remain valid. • Label smoothing softens hard targets and can reduce overconfidence. • Early stopping chooses a checkpoint based on validation behavior. If training loss keeps decreasing while valid
-
-  Rank: 11
-  Source: Machine_Learning_Detailed_Notes.pdf
-  Page: 2
-  Chunk ID: CHK-3
-  Excerpt: • Self-supervised learning: creates learning targets from the data itself, widely used for language and vision. • Reinforcement learning: an agent learns actions through rewards and interaction with an environment. A feature is an input variable; a target is the value to predict. Model parameters are learned from data, while hyperparameters are sel
-
-  Rank: 12
-  Source: Deep_Learning_Detailed_Notes.pdf
-  Page: 3
-  Chunk ID: CHK-10
-  Excerpt: values carry information to combine. Transformer components • Token embeddings map token IDs to vectors; positional information encodes order. • Multi-head attention learns multiple relation patterns in parallel. • Feed-forward layers transform each token representation. • Residual connections and layer normalization support stable deep training. •
-
 AFTER RERANKING: 4 selected chunks
 
   Rank: 1
-  Source: sample.pdf
-  Page: 2
-  Chunk ID: CHK-2
-  Excerpt: Sample Machine Learning Lecture Notes Page 2 1. What is Machine Learning? Machine learning is a field of computing in which a system learns patterns from examples instead of relying only on rules written by a programmer. A training dataset contains examples that help a model estimate a relationship between inputs and outputs. A model is useful when
-
-  Rank: 2
   Source: Machine_Learning_Detailed_Notes.pdf
   Page: 2
   Chunk ID: CHK-2
   Excerpt: Detailed study notes • Educational reference Page 2 1. Machine Learning Foundations Machine learning (ML) uses data to learn patterns for prediction or decision-making. A practical workflow is: define the task and metric, collect representative data, inspect and clean it, split the data, build a baseline, train candidate models, tune on validation
 
-  Rank: 3
+  Rank: 2
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 2
   Chunk ID: CHK-2
   Excerpt: Detailed study notes • Educational reference Page 2 1. Deep Learning Foundations Deep learning uses neural networks with multiple layers to learn representations. A neuron computes z = wIx + b and output a = φ(z), where φ is a nonlinear activation. Without nonlinear activations, stacked linear layers collapse into one linear transformation. Activat
 
-  Rank: 4
+  Rank: 3
   Source: Deep_Learning_Detailed_Notes.pdf
   Page: 1
   Chunk ID: CHK-1
   Excerpt: Detailed study notes • Educational reference Page 1 Deep Learning — Detailed Study Notes Neural networks • Optimization • CNNs • Sequence models • Transformers How to study these notes Read each concept, make a one-page summary, then test yourself using the review questions at the end. Where code is shown, run it on a small dataset and compare resu
 
+  Rank: 4
+  Source: Machine_Learning_Detailed_Notes.pdf
+  Page: 2
+  Chunk ID: CHK-3
+  Excerpt: • Self-supervised learning: creates learning targets from the data itself, widely used for language and vision. • Reinforcement learning: an agent learns actions through rewards and interaction with an environment. A feature is an input variable; a target is the value to predict. Model parameters are learned from data, while hyperparameters are sel
+
 RANK COMPARISON
 ----------------------------------------------------------------------------------------------------
 Before      After       Change            Source / Page / Chunk ID
 ----------------------------------------------------------------------------------------------------
-1           1           Unchanged         sample.pdf / page 2 / CHK-2
-3           2           Improved +1       Machine_Learning_Detailed_Notes.pdf / page 2 / CHK-2
-2           3           Dropped -1        Deep_Learning_Detailed_Notes.pdf / page 2 / CHK-2
-6           4           Improved +2       Deep_Learning_Detailed_Notes.pdf / page 1 / CHK-1
+2           1           Improved +1       Machine_Learning_Detailed_Notes.pdf / page 2 / CHK-2
+1           2           Dropped -1        Deep_Learning_Detailed_Notes.pdf / page 2 / CHK-2
+5           3           Improved +2       Deep_Learning_Detailed_Notes.pdf / page 1 / CHK-1
+10          4           Improved +6       Machine_Learning_Detailed_Notes.pdf / page 2 / CHK-3
 
 SUMMARY
 --------------------------------------------------
 FAISS candidates retrieved: 12
 Chunks returned after reranking: 4
-Chunks improved in rank: 2
+Chunks improved in rank: 3
 Chunks dropped in rank: 1
-Chunks with unchanged rank: 1
+Chunks with unchanged rank: 0
 Chunks not found in initial candidates: 0
 Relative order changed: True
 RESULT: The order of retained chunks changed.

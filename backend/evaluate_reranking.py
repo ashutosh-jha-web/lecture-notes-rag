@@ -58,10 +58,11 @@ def evaluate_question(store, question):
     reranked_retriever = make_reranked_retriever(store)
     reranked_docs = reranked_retriever.invoke(question)
 
-    # Print the original ranking.
-    print(f"\nBEFORE RERANKING: {len(initial_docs)} FAISS candidates")
 
-    for rank, doc in enumerate(initial_docs, start=1):
+    # Print the top 5 chunks before reranking.
+    print(f"\nTOP 5 BEFORE RERANKING (from {len(initial_docs)} FAISS candidates)")
+
+    for rank, doc in enumerate(initial_docs[:5], start=1):
         show_chunk(rank, doc)
 
     # Print the final ranking.

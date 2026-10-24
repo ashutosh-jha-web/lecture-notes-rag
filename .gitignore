@@ -30,6 +30,8 @@ backend/uploads/
 # Evaluation logs and backups
 backend/eval/results.jsonl
 backend/eval/results_backup_*.jsonl
+backend/eval/test_results.jsonl
+backend/eval/test_update_results.jsonl
 backend/app/ragas_evaluator.py.bak
 
 # Generated TypeScript build cache
