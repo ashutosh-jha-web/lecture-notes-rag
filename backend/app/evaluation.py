@@ -26,8 +26,18 @@ def append_evaluation(
     target.parent.mkdir(parents=True, exist_ok=True)
 
     row = dict(record)
-    row.setdefault("evaluation_id", str(uuid.uuid4()))
+    if not row.get("evaluation_id"):
+        row["evaluation_id"] = str(uuid.uuid4())
     row.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+
+    if target.exists():
+        with target.open("r", encoding="utf-8") as file:
+            for line in file:
+                if not line.strip():
+                    continue
+                existing = json.loads(line)
+                if existing.get("evaluation_id") == row["evaluation_id"]:
+                    raise ValueError("Evaluation ID already exists: " + row["evaluation_id"])
 
     with target.open("a", encoding="utf-8") as file:
         file.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -59,22 +69,22 @@ def update_evaluation(
                     continue
                 rows.append(json.loads(line))
 
-    updated = False
+    matches = [
+        index for index, row in enumerate(rows)
+        if row.get("evaluation_id") == evaluation_id
+    ]
 
-    for index, row in enumerate(rows):
-        if row.get("evaluation_id") == evaluation_id:
-            rows[index] = {
-                **row,
-                **record,
-                "evaluation_id": evaluation_id,
-            }
-            updated = True
-            break
+    if not matches:
+        raise ValueError("Evaluation record not found: " + evaluation_id)
+    if len(matches) > 1:
+        raise ValueError("Cannot update evaluation with duplicate ID: " + evaluation_id)
 
-    if not updated:
-        raise ValueError(
-            f"Evaluation record not found: {evaluation_id}"
-        )
+    index = matches[0]
+    rows[index] = {
+        **rows[index],
+        **record,
+        "evaluation_id": evaluation_id,
+    }
 
     with target.open("w", encoding="utf-8") as file:
         for row in rows:

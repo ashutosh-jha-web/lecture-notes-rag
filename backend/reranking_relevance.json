@@ -1,0 +1,20 @@
+{
+  "What is TF-IDF and how does it represent text?": {
+    "relevant_chunks": {
+      "NLP_Detailed_Notes.pdf|2|CHK-6": 3,
+      "NLP_Detailed_Notes.pdf|2|CHK-5": 1
+    }
+  },
+  "Explain how convolutional neural networks extract features from images.": {
+    "relevant_chunks": {
+      "Deep_Learning_Detailed_Notes.pdf|3|CHK-8": 3,
+      "Deep_Learning_Detailed_Notes.pdf|2|CHK-2": 1
+    }
+  },
+  "What is the difference between machine learning and deep learning?": {
+    "relevant_chunks": {
+      "Machine_Learning_Detailed_Notes.pdf|2|CHK-2": 3,
+      "Deep_Learning_Detailed_Notes.pdf|2|CHK-2": 3
+    }
+  }
+}

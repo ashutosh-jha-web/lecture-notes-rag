@@ -7,6 +7,11 @@ Questions evaluated = 3
 QUESTION: What is TF-IDF and how does it represent text?
 ====================================================================================================
 
+RELEVANCE METRICS
+--------------------------------------------------
+FAISS baseline: Recall@4=1.000, MRR=1.000, nDCG@4=0.983
+After reranking: Recall@4=1.000, MRR=1.000, nDCG@4=1.000
+
 TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
   Rank: 1
@@ -91,6 +96,11 @@ Compare the excerpts with the question. Verify whether the most relevant chunks 
 ====================================================================================================
 QUESTION: Explain how convolutional neural networks extract features from images.
 ====================================================================================================
+
+RELEVANCE METRICS
+--------------------------------------------------
+FAISS baseline: Recall@4=1.000, MRR=0.500, nDCG@4=0.644
+After reranking: Recall@4=1.000, MRR=0.500, nDCG@4=0.635
 
 TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
@@ -177,6 +187,11 @@ Compare the excerpts with the question. Verify whether the most relevant chunks 
 QUESTION: What is the difference between machine learning and deep learning?
 ====================================================================================================
 
+RELEVANCE METRICS
+--------------------------------------------------
+FAISS baseline: Recall@4=1.000, MRR=1.000, nDCG@4=1.000
+After reranking: Recall@4=1.000, MRR=1.000, nDCG@4=1.000
+
 TOP 5 BEFORE RERANKING (from 12 FAISS candidates)
 
   Rank: 1
@@ -257,5 +272,9 @@ RESULT: The order of retained chunks changed.
 
 MANUAL RELEVANCE CHECK
 Compare the excerpts with the question. Verify whether the most relevant chunks appear near the top after reranking. A changed ranking alone does not prove improved relevance.
+
+AGGREGATE METRICS (mean across questions)
+FAISS baseline: Recall@4=1.000, MRR=0.833, nDCG@4=0.876
+After reranking: Recall@4=1.000, MRR=0.833, nDCG@4=0.878
 
 Report saved to: /Users/vampire/Desktop/Projects/Project 1 - RAG Assistant/lecture-notes-rag/reranking_evaluation.txt

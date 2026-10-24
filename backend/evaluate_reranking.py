@@ -1,4 +1,5 @@
 
+import json
 import sys
 from pathlib import Path
 
@@ -11,6 +12,11 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.config import RETRIEVAL_K, RERANK_TOP_N
 from app.retrieval import make_reranked_retriever
 from app.vector_store import load_index
+from reranking_metrics import (
+    mean_reciprocal_rank,
+    ndcg_at_k,
+    recall_at_k,
+)
 
 
 QUESTIONS = [
@@ -43,7 +49,7 @@ def show_chunk(rank, doc):
     print(f"  Excerpt: {excerpt}")
 
 
-def evaluate_question(store, question):
+def evaluate_question(store, question, relevance_config):
     print("\n" + "=" * 100)
     print(f"QUESTION: {question}")
     print("=" * 100)
@@ -58,6 +64,35 @@ def evaluate_question(store, question):
     reranked_retriever = make_reranked_retriever(store)
     reranked_docs = reranked_retriever.invoke(question)
 
+    relevance = relevance_config[question]["relevant_chunks"]
+    initial_ids = [
+        "|".join(map(str, chunk_identity(doc)))
+        for doc in initial_docs
+    ]
+    reranked_ids = [
+        "|".join(map(str, chunk_identity(doc)))
+        for doc in reranked_docs
+    ]
+
+    print("\nRELEVANCE METRICS")
+    print("-" * 50)
+    metrics = {}
+    for label, ranked_ids in (
+        ("FAISS baseline", initial_ids),
+        ("After reranking", reranked_ids),
+    ):
+        metrics[label] = {
+            "Recall@4": recall_at_k(ranked_ids, relevance, 4),
+            "MRR": mean_reciprocal_rank(ranked_ids, relevance),
+            "nDCG@4": ndcg_at_k(ranked_ids, relevance, 4),
+        }
+        print(
+            f"{label}: "
+            + ", ".join(
+                f"{name}={value:.3f}"
+                for name, value in metrics[label].items()
+            )
+        )
 
     # Print the top 5 chunks before reranking.
     print(f"\nTOP 5 BEFORE RERANKING (from {len(initial_docs)} FAISS candidates)")
@@ -167,8 +202,21 @@ def evaluate_question(store, question):
         "A changed ranking alone does not prove improved relevance."
     )
 
+    return metrics
+
 
 def main():
+    print("Loading relevance labels...")
+    relevance_path = BACKEND_DIR / "reranking_relevance.json"
+    with relevance_path.open("r", encoding="utf-8") as file:
+        relevance_config = json.load(file)
+
+    missing_questions = set(QUESTIONS) - set(relevance_config)
+    if missing_questions:
+        raise ValueError(
+            f"Missing relevance labels for questions: {sorted(missing_questions)}"
+        )
+
     print("Loading the existing FAISS index...")
     store = load_index()
 
@@ -199,8 +247,32 @@ def main():
             print(f"RERANK_TOP_N = {RERANK_TOP_N}")
             print(f"Questions evaluated = {len(QUESTIONS)}")
 
+            metric_totals = {
+                label: {"Recall@4": 0.0, "MRR": 0.0, "nDCG@4": 0.0}
+                for label in ("FAISS baseline", "After reranking")
+            }
+
             for question in QUESTIONS:
-                evaluate_question(store, question)
+                question_metrics = evaluate_question(
+                    store, question, relevance_config
+                )
+                for label, values in question_metrics.items():
+                    for metric, value in values.items():
+                        metric_totals[label][metric] += value
+
+            print("\nAGGREGATE METRICS (mean across questions)")
+            for label, totals in metric_totals.items():
+                averages = {
+                    metric: value / len(QUESTIONS)
+                    for metric, value in totals.items()
+                }
+                print(
+                    f"{label}: "
+                    + ", ".join(
+                        f"{metric}={value:.3f}"
+                        for metric, value in averages.items()
+                    )
+                )
 
             print(f"\nReport saved to: {report_path}")
 
