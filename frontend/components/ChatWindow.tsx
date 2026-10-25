@@ -66,6 +66,7 @@ export default function ChatWindow({
         const evaluation: EvaluationResult = {
           ...result.latest,
           status: result.status,
+          metric_errors: result.metric_errors,
         };
 
         onEvaluationChange(evaluation);

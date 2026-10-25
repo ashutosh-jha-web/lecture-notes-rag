@@ -33,6 +33,7 @@ export type EvaluationStatus =
 
 export type EvaluationResult = EvaluationMetrics & {
   status: EvaluationStatus;
+  metric_errors?: Record<string, string>;
 };
 
 export type AskResponse = {
@@ -73,6 +74,7 @@ export type DocumentStatus = {
 export type LatestEvaluationResponse = {
   latest: EvaluationMetrics;
   status: EvaluationStatus;
+  metric_errors?: Record<string, string>;
 };
 
 async function readError(res: Response): Promise<string> {

@@ -121,6 +121,7 @@ def get_latest_evaluation() -> dict:
                             "context_precision": metrics.get("context_precision"),
                         },
                         "status": record.get("status", "unknown"),
+                        "metric_errors": record.get("metric_errors", {}),
                     }
 
     except (OSError, json.JSONDecodeError):

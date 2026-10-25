@@ -1,19 +1,32 @@
-
 # Lecture Notes Q&A Assistant
 
-A Retrieval-Augmented Generation (RAG) application that allows users to upload lecture-note PDFs and ask questions about their content. The system retrieves relevant passages, reranks them using a cross-encoder, and generates answers with source attribution.
+**Problem Statement:** Build a single-source Retrieval-Augmented Generation (RAG) assistant using embeddings, FAISS, cross-encoder reranking, and RAGAS evaluation.
+
+**Selected Domain: Option 2 — Lecture Notes Q&A**
+
+**Deployment:** Local development only. No public hosted application URL is currently available.
+
+## Overview
+
+The Lecture Notes Q&A Assistant is a Retrieval-Augmented Generation (RAG) application that allows users to upload lecture-note PDFs and ask questions grounded in their content.
+
+The application extracts text from uploaded PDFs, divides it into overlapping chunks, generates embeddings, and stores searchable vectors in FAISS. When a user asks a question, the system retrieves candidate passages, reranks them using a cross-encoder, and passes the selected context to a language model to generate an answer with source attribution.
+
+The project also includes query processing, retrieval evaluation, and RAGAS-based evaluation to help assess answer quality and troubleshoot failures.
 
 ## Features
 
-- **PDF ingestion:** Upload lecture-note PDFs and split extracted text into overlapping chunks.
-- **Vector search:** Generate local embeddings and store searchable vectors in FAISS.
-- **Cross-encoder reranking:** Rerank retrieved passages to prioritize relevant context before answer generation.
-- **RAG pipeline:** Retrieve context and generate answers using a LangChain Expression Language (LCEL) chain.
+- **PDF ingestion:** Upload lecture-note PDFs and extract text for processing.
+- **Text chunking:** Split extracted content into overlapping chunks.
+- **Vector search:** Generate local embeddings and store searchable vectors using FAISS.
+- **Cross-encoder reranking:** Reorder retrieved passages before selecting context for answer generation.
+- **RAG pipeline:** Generate context-grounded answers through a LangChain Expression Language (LCEL) chain.
 - **Query processing:** Support query routing and decomposition for multi-part questions.
-- **Source attribution:** Display retrieved sources alongside answers.
-- **RAGAS evaluation:** Evaluate answer faithfulness, answer relevancy, and context precision when the required model and API quota are available.
-- **Evaluation logging:** Record evaluation status, metric scores, and metric errors for troubleshooting.
+- **Source attribution:** Display retrieved source passages alongside generated answers.
+- **RAGAS evaluation:** Evaluate faithfulness, answer relevancy, and context precision when the configured evaluation service is available.
+- **Evaluation logging:** Record evaluation status, metric results, and metric errors for troubleshooting.
 - **Web interface:** Interact with the assistant through a Next.js frontend.
+- **Evaluation artifacts:** Include recorded retrieval and reranking experiment results.
 
 ## Architecture
 
@@ -23,6 +36,7 @@ flowchart TD
     B --> C[Chunking]
     C --> D[Local Embeddings]
     D --> E[FAISS Vector Store]
+
     F[User Question] --> G[Query Processing]
     G --> H[Vector Retrieval]
     E --> H
@@ -32,13 +46,14 @@ flowchart TD
     K --> L[LLM Answer]
     L --> M[Answer and Sources]
     L --> N[RAGAS Evaluation]
+    N --> O[Evaluation Results and Errors]
 ```
 
 ## Tech Stack
 
 | Component | Technology |
 |---|---|
-| Backend | Python, FastAPI |
+| Backend API | Python, FastAPI |
 | Frontend | Next.js, React, TypeScript |
 | RAG orchestration | LangChain, LCEL |
 | Vector store | FAISS |
@@ -46,7 +61,7 @@ flowchart TD
 | Reranking | Hugging Face Cross-Encoder |
 | Answer generation | Gemini API through an OpenAI-compatible endpoint |
 | Evaluation | RAGAS |
-
+| API documentation | FastAPI / Swagger UI |
 
 ## Project Structure
 
@@ -106,33 +121,38 @@ lecture-notes-rag/
 └── retrieval_metrics_report.txt
 ```
 
-
 ## Prerequisites
 
-- Python 3.11 or a version compatible with the backend dependencies
-- Node.js and npm
-- Git
-- A Google AI Studio API key for Gemini-based answer generation and LLM-based evaluation
+Install the following before running the project:
 
-## Setup
+- Python 3.11, or another version compatible with the backend dependencies.
+- Node.js and npm.
+- Git.
+- A Google AI Studio API key for Gemini-based answer generation and LLM-based evaluation.
+
+The embedding and reranking models run locally after their model files have been downloaded. The initial setup may take longer because these files need to be downloaded.
+
+## Getting Started
 
 ### 1. Clone the repository
 
-```bash
-git clone git@github.com:ashutosh-jha-web/lecture-notes-rag.git
-cd lecture-notes-rag
-```
-
-HTTPS alternative:
+Using HTTPS:
 
 ```bash
 git clone https://github.com/ashutosh-jha-web/lecture-notes-rag.git
 cd lecture-notes-rag
 ```
 
-### 2. Configure the backend
+SSH is also supported if your GitHub SSH key is configured:
 
-From the repository root:
+```bash
+git clone git@github.com:ashutosh-jha-web/lecture-notes-rag.git
+cd lecture-notes-rag
+```
+
+### 2. Set up the Python environment
+
+Run these commands from the repository root:
 
 ```bash
 python -m venv .venv
@@ -141,13 +161,13 @@ python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
-Create a local environment file:
+Create your local backend environment file:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` and set your API key and model configuration. Never commit real API keys.
+Edit `backend/.env` and configure your API key and model settings.
 
 Example configuration:
 
@@ -169,23 +189,32 @@ RERANK_TOP_N=4
 MAX_UPLOAD_MB=25
 ```
 
-The embedding and reranking models are downloaded locally when first needed. The first run may take longer because model files need to be downloaded.
+Use the variable names and supported values in `backend/.env.example` as the source of truth for your checked-out version. The example above illustrates the main configuration settings; optional variables may also be available.
+
+**Important:** Never commit your real API key. Keep `backend/.env` and other local environment files out of Git.
 
 ### 3. Start the backend
 
-From the repository root:
+From the repository root, activate the virtual environment if it is not already active:
 
 ```bash
 source .venv/bin/activate
+```
+
+Start the FastAPI application:
+
+```bash
 PYTHONPATH=backend python -m uvicorn app.main:app --app-dir backend --reload
 ```
 
-The API should be available at:
+The backend should be available at:
 
 - API base URL: `http://localhost:8000`
 - Interactive API documentation: `http://localhost:8000/docs`
 
-### 4. Configure and start the frontend
+Keep this terminal running.
+
+### 4. Set up and start the frontend
 
 Open a second terminal at the repository root:
 
@@ -194,7 +223,7 @@ cd frontend
 npm install
 ```
 
-Create `frontend/.env.local` with:
+Create a local frontend environment file named `frontend/.env.local` containing:
 
 ```dotenv
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
@@ -206,90 +235,162 @@ Start the frontend:
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open the application in your browser:
 
-## How to Use
+`http://localhost:3000`
+
+Keep both the backend and frontend running while using the application.
+
+## How to Use the Application
 
 1. Start the backend and frontend.
-2. Upload a lecture-notes PDF through the interface.
-3. Wait for document processing and indexing to finish.
-4. Ask a question about the uploaded material.
-5. Review the generated answer and its source passages.
-6. Inspect evaluation results when metric evaluation succeeds.
+2. Open the application at `http://localhost:3000`.
+3. Upload a lecture-notes PDF.
+4. Wait for document processing and indexing to complete.
+5. Enter a question about the uploaded material.
+6. Review the generated answer and its source passages.
+7. Inspect the evaluation panel to see available RAGAS scores and any reported evaluation errors.
 
-## Retrieval and Reranking
+Answers depend on the content and quality of the uploaded document, retrieval results, and behavior of the configured language model.
 
-The retrieval pipeline initially retrieves up to 12 candidate passages and reranks them using a cross-encoder. The configured pipeline passes up to 4 top-ranked passages to the downstream chain.
+## Retrieval and Cross-Encoder Reranking
 
-The repository includes a reranking evaluation script:
+The retrieval pipeline retrieves candidate passages from FAISS and uses a cross-encoder to rerank them before selecting context for the answer-generation chain.
+
+The recorded experiment uses the following settings:
+
+| Setting | Value |
+|---|---:|
+| Initial retrieval candidates (`RETRIEVAL_K`) | 12 |
+| Passages retained after reranking (`RERANK_TOP_N`) | 4 |
+
+### Before-and-after comparison
+
+The following figures are taken from the recorded `reranking_evaluation.txt` experiment. They represent three evaluated questions, not a comprehensive benchmark.
+
+| Metric | FAISS baseline | After reranking |
+|---|---:|---:|
+| Mean Recall@4 | 1.000 | 1.000 |
+| Mean MRR | 0.833 | 0.833 |
+| Mean nDCG@4 | 0.876 | 0.878 |
+
+**Interpretation:**
+
+- Mean Recall@4 remained unchanged at 1.000 in this small experiment.
+- Mean MRR remained unchanged at 0.833.
+- Mean nDCG@4 increased slightly from 0.876 to 0.878.
+- The ordering of passages changed across the evaluated examples.
+- Results varied by question: nDCG improved for some examples, decreased for another, and remained unchanged for another.
+
+These results demonstrate that reranking changes passage ordering, with a small aggregate nDCG improvement in this particular experiment. They do **not** establish that reranking improves every query or produces a substantial overall quality improvement. A larger labeled dataset is needed for stronger conclusions.
+
+### Reproducing the reranking experiment
+
+From the repository root, activate the root virtual environment and run:
 
 ```bash
-cd backend
 source .venv/bin/activate
-PYTHONPATH=. python evaluate_reranking.py
+PYTHONPATH=backend python backend/evaluate_reranking.py
 ```
 
-The script can be used to inspect changes in candidate ordering. A change in ranking demonstrates that reranking affects the results; it does not by itself prove improved answer quality. Relevance should be assessed against the query and its expected evidence.
+Review the script's configuration and output before comparing a new run with the recorded results. Model versions, input documents, and evaluation settings can affect the outcome.
+
+## Retrieval Evaluation
+
+The repository also includes `retrieval_metrics_report.txt`, which contains recorded retrieval evaluation results.
+
+Retrieval metrics help assess how effectively relevant passages are found and ranked. They should be interpreted alongside the queries, expected evidence, evaluation methodology, and dataset size. Results from a small test set may not generalize to other lecture notes.
 
 ## Query Processing
 
-The query-processing module supports breaking multi-part questions into smaller questions and routing queries through the configured retrieval workflow. The quality of decomposition and routing depends on the implementation and its configured models.
+The query-processing functionality supports breaking multi-part questions into smaller questions and routing queries through the configured retrieval workflow.
+
+Query decomposition can help when a question contains multiple information needs. Routing can help direct a query through the appropriate processing path. Actual behavior depends on the implementation and configured models.
 
 ## RAGAS Evaluation
 
-The evaluation module is designed to calculate:
+The application supports evaluation using three RAGAS metrics:
 
-- **Faithfulness:** Whether the answer is supported by the retrieved context.
-- **Answer relevancy:** Whether the answer addresses the user's question.
-- **Context precision:** Whether relevant retrieved context is ranked ahead of irrelevant context.
+- **Faithfulness:** Measures whether the generated answer is supported by the retrieved context.
+- **Answer relevancy:** Measures how relevant the answer is to the user's question.
+- **Context precision:** Measures whether relevant retrieved context is ranked ahead of irrelevant context.
 
-Evaluation may fail or return partial results if the configured LLM service is unavailable, API credentials are invalid, rate limits are reached, or quota is exhausted. The application records evaluation errors so these cases can be investigated.
+Evaluation requires a functioning configured LLM endpoint. Results may be complete, partial, or unavailable when API credentials are invalid, the provider is unavailable, rate limits are reached, or quota is exhausted.
+
+The application records evaluation status and metric errors to help distinguish successful evaluation from partial or failed evaluation. A failed metric does not necessarily mean that answer generation failed; evaluation can fail independently of the answer-generation step.
+
+RAGAS scores are evaluation signals, not guarantees of correctness. They should be interpreted alongside source attribution and manual review.
 
 ## Evaluation Artifacts
 
-The repository includes:
+The repository contains these recorded evaluation outputs:
 
-- `reranking_evaluation.txt` — recorded reranking experiment output.
-- `retrieval_metrics_report.txt` — recorded retrieval metrics output.
+- `reranking_evaluation.txt` — reranking experiment results, including baseline and reranked retrieval metrics.
+- `retrieval_metrics_report.txt` — recorded retrieval evaluation metrics.
 
-These files represent recorded evaluation runs and should not be interpreted as guarantees of performance on every document or query.
+These are saved outputs from particular runs. They are not guarantees of performance across all documents, questions, models, or environments.
 
 ## API Reference
 
-Once the backend is running, visit `http://localhost:8000/docs` to inspect the actual FastAPI endpoints, request schemas, and responses.
+Once the backend is running, visit:
 
-## Configuration
+`http://localhost:8000/docs`
 
-Important settings are available through environment variables:
+The interactive FastAPI documentation exposes the application's registered endpoints, request schemas, and response schemas. This is the recommended reference for the API available in the checked-out version of the project.
+
+## Configuration Reference
+
+The following table describes the main configuration variables. Confirm the exact supported variables and defaults in `backend/.env.example` and the backend configuration module.
 
 | Variable | Purpose |
 |---|---|
-| `GOOGLE_API_KEY` | API authentication |
-| `GEMINI_CHAT_MODEL` | Configured Gemini chat model |
-| `GEMINI_EVALUATION_MODEL` | Optional RAGAS evaluation model; defaults to `GEMINI_CHAT_MODEL` |
-| `EMBEDDING_MODEL` | Local embedding model |
-| `RERANKER_MODEL` | Cross-encoder model |
+| `GOOGLE_API_KEY` | API authentication for the configured Google AI service |
+| `GEMINI_CHAT_MODEL` | Model used for answer generation |
+| `GEMINI_EVALUATION_MODEL` | Optional model for evaluation; the configured default depends on the backend implementation |
+| `EMBEDDING_MODEL` | Local text-embedding model |
+| `RERANKER_MODEL` | Cross-encoder used to rerank candidate passages |
 | `CHUNK_SIZE` | Target text chunk size |
 | `CHUNK_OVERLAP` | Overlap between adjacent chunks |
-| `RETRIEVAL_K` | Initial retrieval candidate count |
+| `RETRIEVAL_K` | Number of initial retrieval candidates |
 | `RERANK_TOP_N` | Number of passages retained after reranking |
-| `MAX_UPLOAD_MB` | Maximum configured upload size |
+| `MAX_UPLOAD_MB` | Configured upload-size limit |
+| `UPLOAD_DIR` | Local upload storage location |
+| `FAISS_DIR` | Local FAISS index storage location |
+| `EVAL_LOG_PATH` | Location for evaluation logs |
+
+## Testing
+
+The backend contains tests covering areas such as chunking, citations, query processing, and vector-store behavior. Some files are explicitly named as manual evaluation or integration checks; do not assume every test is an automated unit test suitable for routine CI execution.
+
+From the repository root, activate the virtual environment and run the backend test suite:
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=backend pytest backend/tests/ -q
+```
+
+Tests that require live model services, API credentials, or manual execution may have additional requirements. Check each test file before running those checks.
 
 ## Limitations
 
-- Answer quality depends on document extraction, retrieval relevance, and LLM behavior.
-- Local embedding and reranking models require resources and may take time to download.
-- RAGAS evaluation depends on a working LLM endpoint and sufficient API quota.
-- Uploaded PDFs, local FAISS indexes, environment files, and evaluation logs are local runtime data and are not included in the repository by default.
+- **Local deployment:** The application is currently intended to run locally; no public hosted URL is provided.
+- **Document support:** Extraction quality depends on the PDF's structure and whether its text is accessible. Scanned documents may require OCR support.
+- **Retrieval quality:** Relevant passages may be missed or ranked imperfectly.
+- **Model dependency:** Answer quality depends on the selected model and the retrieved evidence.
+- **External API dependency:** Gemini-based generation and evaluation require valid credentials, provider availability, and sufficient quota.
+- **Local model resources:** Embedding and reranking models require downloads, storage, and computational resources.
+- **Evaluation coverage:** Recorded retrieval and reranking experiments are limited and should not be treated as universal performance claims.
+- **Production readiness:** Authentication, deployment hardening, monitoring, and other production requirements would need further work before public deployment.
 
 ## Future Improvements
 
-- Add automated integration tests for the complete upload-to-answer workflow.
-- Compare retrieval and answer quality using a larger, labeled query dataset.
-- Add robust handling for scanned PDFs and OCR.
-- Add reproducible evaluation summaries and latency measurements.
-- Document deployment and production security requirements.
+- Add automated end-to-end tests for the full upload-to-answer workflow.
+- Evaluate retrieval and answer quality on a larger labeled question set.
+- Add OCR support for scanned PDFs.
+- Record latency, resource usage, and reproducible evaluation summaries.
+- Improve error categorization and retry behavior for external model-service failures.
+- Document and implement deployment and production security requirements.
 
 ## License
 
-No license has been specified yet. Contact the repository owner before reusing this project.
+No license has been specified yet. Unless a license is added to the repository, reuse and redistribution permissions should not be assumed. Contact the repository owner regarding permission to reuse this project.
