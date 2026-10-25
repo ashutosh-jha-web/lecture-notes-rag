@@ -1,6 +1,4 @@
-
 from pathlib import Path
-from datetime import datetime
 
 from app.config import EMBEDDING_MODEL, RETRIEVAL_K, RERANK_TOP_N
 from app.vector_store import load_index
@@ -14,57 +12,38 @@ from app.retrieval import get_reranker_model
 PROJECT_ROOT = Path(__file__).resolve().parent
 REPORT_PATH = PROJECT_ROOT / "retrieval_metrics_report.txt"
 
+# This benchmark is designed for the currently indexed
+# NLP_Detailed_Notes.pdf. Questions outside that document's scope
+# are intentionally excluded.
 QUESTIONS = [
-    "Summarize what is NLP",
+    "Summarize what natural language processing is",
     "What is TF-IDF and how does it represent text?",
-    "Explain how convolutional neural networks extract features from images.",
-    "What is the difference between machine learning and deep learning?",
-    "What are word embeddings in NLP?",
-    "Explain tokenization in natural language processing.",
+    "Explain tokenization and subword tokenization",
+    "How do Word2Vec and GloVe represent words?",
+    "How do static and contextual embeddings differ?",
     "What is the role of transformers in NLP?",
-    "What is overfitting in machine learning?",
-    "Explain the role of activation functions in neural networks.",
-    "What is backpropagation in deep learning?",
+    "Explain the RAG workflow",
+    "How does a cross-encoder reranker work?",
+    "How can retrieval quality be evaluated?",
+    "How should a RAG system handle questions unsupported by its documents?",
 ]
 
-# These are your existing starting labels.
-# Verify them against the actual chunk contents before
-# treating the final metrics as ground truth.
-
+# Candidate relevance labels based on inspection of the actual
+# indexed chunk excerpts. Review them against the full PDF before
+# treating metrics as a gold-standard benchmark.
 RELEVANT_CHUNKS = {
-    "Summarize what is NLP": {
-        "45f34d1ecb-P2-C0",
-        "45f34d1ecb-P2-C663",
-    },
-    "What is TF-IDF and how does it represent text?": {
-        "45f34d1ecb-P2-C2883",
-    },
-    "Explain how convolutional neural networks extract features from images.": {
-        "319683de7a-P3-C736",
-    },
-    "What is the difference between machine learning and deep learning?": {
-        "ac0cc75022-P2-C0",
-        "319683de7a-P2-C0",
-    },
-    "What are word embeddings in NLP?": {
-        "45f34d1ecb-P3-C0",
-    },
-    "Explain tokenization in natural language processing.": {
-        "45f34d1ecb-P2-C2072",
-    },
-    "What is the role of transformers in NLP?": {
-        "319683de7a-P3-C1490",
-        "319683de7a-P3-C2256",
-    },
-    "What is overfitting in machine learning?": {
-        "319683de7a-P3-C0",
-        "ac0cc75022-P4-C725",
-    },
-    "Explain the role of activation functions in neural networks.": {
-        "319683de7a-P2-C0",
-    },
-    "What is backpropagation in deep learning?": {
-        "319683de7a-P2-C713",
+    "Summarize what natural language processing is": {"CHK-2"},
+    "What is TF-IDF and how does it represent text?": {"CHK-6"},
+    "Explain tokenization and subword tokenization": {"CHK-4", "CHK-5"},
+    "How do Word2Vec and GloVe represent words?": {"CHK-7"},
+    "How do static and contextual embeddings differ?": {"CHK-7", "CHK-9"},
+    "What is the role of transformers in NLP?": {"CHK-9"},
+    "Explain the RAG workflow": {"CHK-11"},
+    "How does a cross-encoder reranker work?": {"CHK-11", "CHK-12"},
+    "How can retrieval quality be evaluated?": {"CHK-12"},
+    "How should a RAG system handle questions unsupported by its documents?": {
+        "CHK-12",
+        "CHK-13",
     },
 }
 
@@ -88,14 +67,12 @@ def get_chunk_id(document):
 def get_source_info(document):
     """Get source filename, page number and chunk ID."""
     metadata = document.metadata or {}
-
     source = (
         metadata.get("source")
         or metadata.get("filename")
         or metadata.get("file_name")
         or "Unknown source"
     )
-
     page = metadata.get("page", metadata.get("page_number", "?"))
     chunk_id = get_chunk_id(document)
 
@@ -133,22 +110,33 @@ def deduplicate_documents(documents):
     return unique_documents
 
 
+def get_index_documents(vector_store):
+    """Return documents stored in the FAISS docstore."""
+    documents = []
+    mapping = getattr(vector_store, "index_to_docstore_id", {})
+
+    for docstore_id in mapping.values():
+        document = vector_store.docstore.search(docstore_id)
+        if document is None or isinstance(document, str):
+            continue
+        documents.append(document)
+
+    return documents
+
+
 # =========================================================
 # METRIC FUNCTIONS
 # =========================================================
 
 def precision_at_k(retrieved_ids, relevant_ids, k):
-    """Calculate Precision@K."""
+    """Calculate Precision@K using the requested cutoff."""
     if k <= 0:
         return 0.0
 
     top_k = retrieved_ids[:k]
-
-    relevant_count = sum(
-        1 for chunk_id in top_k
-        if chunk_id in relevant_ids
-    )
-
+    relevant_count = sum(1 for chunk_id in top_k if chunk_id in relevant_ids)
+    # Standard Precision@K uses k as denominator, even when fewer than k
+    # documents are returned.
     return relevant_count / k
 
 
@@ -157,7 +145,6 @@ def reciprocal_rank(retrieved_ids, relevant_ids):
     for rank, chunk_id in enumerate(retrieved_ids, start=1):
         if chunk_id in relevant_ids:
             return 1.0 / rank
-
     return 0.0
 
 
@@ -167,48 +154,32 @@ def reciprocal_rank(retrieved_ids, relevant_ids):
 
 def retrieve_baseline(vector_store, question, k):
     """Retrieve top-k documents using FAISS similarity search."""
-    documents = vector_store.similarity_search(
-        question,
-        k=k,
-    )
-
+    documents = vector_store.similarity_search(question, k=k)
     return deduplicate_documents(documents)
 
 
-def retrieve_reranked(
-    vector_store,
-    question,
-    k,
-    top_n,
-    reranker,
-):
+def retrieve_reranked(vector_store, question, k, top_n, reranker):
     """Retrieve candidates and rerank them with a cross-encoder."""
-    candidates = retrieve_baseline(
-        vector_store,
-        question,
-        k,
-    )
+    candidates = retrieve_baseline(vector_store, question, k)
 
     if not candidates:
         return []
 
-    pairs = [
-        (question, document.page_content)
-        for document in candidates
-    ]
-
+    pairs = [(question, document.page_content) for document in candidates]
     scores = reranker.score(pairs)
+
+    if len(scores) != len(candidates):
+        raise RuntimeError(
+            "Reranker returned a different number of scores than candidates: "
+            f"{len(scores)} scores for {len(candidates)} documents."
+        )
 
     ranked_results = sorted(
         zip(candidates, scores),
         key=lambda item: float(item[1]),
         reverse=True,
     )
-
-    return [
-        document
-        for document, _score in ranked_results[:top_n]
-    ]
+    return [document for document, _score in ranked_results[:top_n]]
 
 
 # =========================================================
@@ -217,96 +188,52 @@ def retrieve_reranked(
 
 def validate_relevance_labels(vector_store):
     """
-    Check whether manually labeled chunk IDs exist in FAISS.
+    Check that every label refers to an indexed chunk.
 
-    This checks ID existence only. It cannot decide whether
-    a chunk is semantically relevant to a question.
+    This validates ID existence only; it cannot determine semantic relevance.
+    Raises ValueError instead of producing misleading zero scores if labels
+    are missing from the active index.
     """
-    stored_chunk_ids = set()
-    missing_metadata_count = 0
-
-    mapping = getattr(
-        vector_store,
-        "index_to_docstore_id",
-        {},
-    )
-
-    for docstore_id in mapping.values():
-        document = vector_store.docstore.search(docstore_id)
-
-        if document is None or isinstance(document, str):
-            continue
-
-        chunk_id = get_chunk_id(document)
-
-        if chunk_id is None:
-            missing_metadata_count += 1
-        else:
-            stored_chunk_ids.add(chunk_id)
+    stored_chunk_ids = {
+        get_chunk_id(document)
+        for document in get_index_documents(vector_store)
+        if get_chunk_id(document) is not None
+    }
 
     print("\n" + "=" * 80)
     print("RELEVANCE LABEL VALIDATION")
     print("=" * 80)
     print(f"Unique chunk IDs found: {len(stored_chunk_ids)}")
 
-    if missing_metadata_count:
-        print(
-            "WARNING: Documents without chunk IDs: "
-            f"{missing_metadata_count}"
+    all_labels = set()
+    for question in QUESTIONS:
+        labeled_ids = RELEVANT_CHUNKS.get(question)
+        if not labeled_ids:
+            raise ValueError(
+                f"No relevance labels configured for question: {question}"
+            )
+        all_labels.update(labeled_ids)
+
+    missing_ids = all_labels - stored_chunk_ids
+    if missing_ids:
+        raise ValueError(
+            "Evaluation stopped because relevance labels do not match the "
+            "currently loaded FAISS index.\n"
+            f"Missing chunk IDs: {sorted(missing_ids)}\n"
+            "Review the index and RELEVANT_CHUNKS before rerunning."
         )
 
-    all_labels_exist = True
-
     for question in QUESTIONS:
-        labeled_ids = RELEVANT_CHUNKS.get(question, set())
-        missing_ids = labeled_ids - stored_chunk_ids
-
-        if missing_ids:
-            all_labels_exist = False
-            print(f"\nQuestion: {question}")
-            print(f"Missing labeled IDs: {sorted(missing_ids)}")
-
-    if all_labels_exist:
-        print("All labeled chunk IDs exist in the FAISS index.")
+        print(
+            f"OK: {question} -> "
+            f"{sorted(RELEVANT_CHUNKS[question])}"
+        )
 
     print(
-        "Note: Existing IDs still need manual semantic relevance "
-        "verification against their source text."
+        "All labeled IDs exist. Semantic relevance still requires review "
+        "against the full source text."
     )
-
     return stored_chunk_ids
-
-
-# =========================================================
-# REPORT HELPERS
-# =========================================================
-
-def print_results(title, documents, relevant_ids):
-    """Print ranked results and return their chunk IDs."""
-    print(f"\n{title}")
-
-    retrieved_ids = []
-
-    if not documents:
-        print("No documents retrieved.")
-        return retrieved_ids
-
-    for rank, document in enumerate(documents, start=1):
-        chunk_id = get_chunk_id(document)
-        retrieved_ids.append(chunk_id)
-
-        if chunk_id in relevant_ids:
-            label = "LABELED RELEVANT"
-        else:
-            label = "NOT LABELED RELEVANT"
-
-        print(f"\nRank: {rank}")
-        print(f"Chunk ID: {chunk_id}")
-        print(f"Label: {label}")
-        print(f"Source: {get_source_info(document)}")
-        print(f"Excerpt: {get_excerpt(document)}")
-
-    return retrieved_ids
 
 
 # =========================================================
@@ -331,17 +258,18 @@ def main():
 
     if RETRIEVAL_K < 1:
         raise ValueError("RETRIEVAL_K must be at least 1.")
-
     if RERANK_TOP_N < 1:
         raise ValueError("RERANK_TOP_N must be at least 1.")
+    if RERANK_TOP_N > RETRIEVAL_K:
+        log(
+            "WARNING: RERANK_TOP_N is greater than RETRIEVAL_K; "
+            "reranked results cannot exceed the retrieved candidate count."
+        )
 
-    # Load the existing FAISS index using the actual function
-    # defined in backend/app/vector_store.py.
     vector_store = load_index()
-
     log("FAISS index loaded successfully.")
 
-    # Verify whether the labeled IDs exist in the index.
+    # Fail fast before calculating any metrics if labels are stale.
     validate_relevance_labels(vector_store)
 
     log("\nLoading cross-encoder reranker...")
@@ -353,27 +281,17 @@ def main():
     baseline_rrs = []
     reranked_rrs = []
 
-    evaluated_questions = 0
-    skipped_questions = 0
-
     for question_number, question in enumerate(QUESTIONS, start=1):
-        relevant_ids = RELEVANT_CHUNKS.get(question, set())
+        relevant_ids = RELEVANT_CHUNKS[question]
 
         log("\n" + "#" * 80)
         log(f"QUESTION {question_number}: {question}")
         log("#" * 80)
-
-        if not relevant_ids:
-            log("SKIPPED: No relevance labels provided.")
-            skipped_questions += 1
-            continue
+        log(f"Manually labeled relevant IDs: {sorted(relevant_ids)}")
 
         baseline_documents = retrieve_baseline(
-            vector_store,
-            question,
-            RETRIEVAL_K,
+            vector_store, question, RETRIEVAL_K
         )
-
         reranked_documents = retrieve_reranked(
             vector_store,
             question,
@@ -382,21 +300,15 @@ def main():
             reranker,
         )
 
-        # Print results to the terminal and save them to the report.
-        # Capture the same details in the report output.
-        log("\nBASELINE FAISS RESULTS")
-        baseline_ids = []
+        baseline_ids = [get_chunk_id(document) for document in baseline_documents]
+        reranked_ids = [get_chunk_id(document) for document in reranked_documents]
 
+        log("\nBASELINE FAISS RESULTS")
+        if not baseline_documents:
+            log("No documents retrieved.")
         for rank, document in enumerate(baseline_documents, start=1):
             chunk_id = get_chunk_id(document)
-            baseline_ids.append(chunk_id)
-
-            label = (
-                "LABELED RELEVANT"
-                if chunk_id in relevant_ids
-                else "NOT LABELED RELEVANT"
-            )
-
+            label = "LABELED RELEVANT" if chunk_id in relevant_ids else "NOT LABELED RELEVANT"
             log(f"\nRank: {rank}")
             log(f"Chunk ID: {chunk_id}")
             log(f"Label: {label}")
@@ -404,54 +316,31 @@ def main():
             log(f"Excerpt: {get_excerpt(document)}")
 
         log("\nCROSS-ENCODER RERANKED RESULTS")
-        reranked_ids = []
-
+        if not reranked_documents:
+            log("No documents retrieved.")
         for rank, document in enumerate(reranked_documents, start=1):
             chunk_id = get_chunk_id(document)
-            reranked_ids.append(chunk_id)
-
-            label = (
-                "LABELED RELEVANT"
-                if chunk_id in relevant_ids
-                else "NOT LABELED RELEVANT"
-            )
-
+            label = "LABELED RELEVANT" if chunk_id in relevant_ids else "NOT LABELED RELEVANT"
             log(f"\nRank: {rank}")
             log(f"Chunk ID: {chunk_id}")
             log(f"Label: {label}")
             log(f"Source: {get_source_info(document)}")
             log(f"Excerpt: {get_excerpt(document)}")
 
-        baseline_p = precision_at_k(
-            baseline_ids,
-            relevant_ids,
-            RERANK_TOP_N,
-        )
-
-        reranked_p = precision_at_k(
-            reranked_ids,
-            relevant_ids,
-            RERANK_TOP_N,
-        )
-
+        baseline_p = precision_at_k(baseline_ids, relevant_ids, RERANK_TOP_N)
+        reranked_p = precision_at_k(reranked_ids, relevant_ids, RERANK_TOP_N)
         baseline_r = reciprocal_rank(
-            baseline_ids,
-            relevant_ids,
+            baseline_ids[:RERANK_TOP_N], relevant_ids
         )
-
         reranked_r = reciprocal_rank(
-            reranked_ids,
-            relevant_ids,
+            reranked_ids[:RERANK_TOP_N], relevant_ids
         )
-
         baseline_precisions.append(baseline_p)
         reranked_precisions.append(reranked_p)
         baseline_rrs.append(baseline_r)
         reranked_rrs.append(reranked_r)
-        evaluated_questions += 1
 
         log("\nQUESTION METRICS")
-        log(f"Relevant chunk IDs: {sorted(relevant_ids)}")
         log(f"Baseline Precision@{RERANK_TOP_N}: {baseline_p:.4f}")
         log(f"Reranked Precision@{RERANK_TOP_N}: {reranked_p:.4f}")
         log(f"Baseline Reciprocal Rank: {baseline_r:.4f}")
@@ -460,59 +349,41 @@ def main():
     log("\n" + "=" * 80)
     log("AGGREGATE RESULTS")
     log("=" * 80)
-    log(f"Evaluated questions: {evaluated_questions}")
-    log(f"Skipped questions: {skipped_questions}")
+    log(f"Evaluated questions: {len(QUESTIONS)}")
+    log("Skipped questions: 0")
 
-    if evaluated_questions:
-        baseline_mean_p = (
-            sum(baseline_precisions) / evaluated_questions
-        )
-        reranked_mean_p = (
-            sum(reranked_precisions) / evaluated_questions
-        )
+    baseline_mean_p = sum(baseline_precisions) / len(baseline_precisions)
+    reranked_mean_p = sum(reranked_precisions) / len(reranked_precisions)
+    baseline_mrr = sum(baseline_rrs) / len(baseline_rrs)
+    reranked_mrr = sum(reranked_rrs) / len(reranked_rrs)
 
-        baseline_mrr = sum(baseline_rrs) / evaluated_questions
-        reranked_mrr = sum(reranked_rrs) / evaluated_questions
-
-        log(
-            f"Baseline Mean Precision@{RERANK_TOP_N}: "
-            f"{baseline_mean_p:.4f}"
-        )
-        log(
-            f"Reranked Mean Precision@{RERANK_TOP_N}: "
-            f"{reranked_mean_p:.4f}"
-        )
-        log(
-            "Precision change: "
-            f"{reranked_mean_p - baseline_mean_p:+.4f}"
-        )
-        log(f"Baseline MRR: {baseline_mrr:.4f}")
-        log(f"Reranked MRR: {reranked_mrr:.4f}")
-        log(f"MRR change: {reranked_mrr - baseline_mrr:+.4f}")
+    log(f"Baseline Mean Precision@{RERANK_TOP_N}: {baseline_mean_p:.4f}")
+    log(f"Reranked Mean Precision@{RERANK_TOP_N}: {reranked_mean_p:.4f}")
+    log(f"Precision change: {reranked_mean_p - baseline_mean_p:+.4f}")
+    log(f"Baseline MRR: {baseline_mrr:.4f}")
+    log(f"Reranked MRR: {reranked_mrr:.4f}")
+    log(f"MRR change: {reranked_mrr - baseline_mrr:+.4f}")
 
     log("\n" + "=" * 80)
     log("INTERPRETATION NOTES")
     log("=" * 80)
     log(
-        "The metrics depend on the correctness and completeness "
-        "of the manual relevance labels."
+        "Scores depend on the correctness and completeness of manual labels. "
+        "The labels in this script are candidate labels based on inspected "
+        "chunk excerpts and should be reviewed against the full source PDF."
     )
     log(
-        "Read the excerpts and verify them against the source PDFs. "
-        "A chunk labeled NOT LABELED RELEVANT may still be relevant "
-        "if the manual labels are incomplete."
+        "This benchmark evaluates only the currently indexed NLP notes. "
+        "It does not establish performance on CNN, general deep-learning, "
+        "or machine-learning documents that are not in the index."
     )
     log(
-        "ID validation only confirms that labeled chunk IDs exist "
-        "in FAISS; it does not validate their semantic relevance."
+        "A reranker can reorder only the candidates returned by the initial "
+        "retriever; it cannot recover evidence that was not retrieved."
     )
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_PATH.write_text(
-        "\n".join(report_lines),
-        encoding="utf-8",
-    )
-
+    REPORT_PATH.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
     log(f"\nReport saved to: {REPORT_PATH}")
 
 

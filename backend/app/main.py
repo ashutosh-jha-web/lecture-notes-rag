@@ -24,6 +24,7 @@ from app.evaluation import (
     append_evaluation,
     create_evaluation_record,
     update_evaluation,
+    evaluation_lock,
 )
 from app.ragas_evaluator import aevaluate_rag_response
 from app.ingestion import extract_pdf_pages, chunk_pages
@@ -55,7 +56,6 @@ app.add_middleware(
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 
 document_lock = threading.RLock()
-
 active_document = {
     "document_loaded": False,
     "filename": None,
@@ -105,22 +105,23 @@ def get_latest_evaluation() -> dict:
         }
 
     try:
-        with path.open("r", encoding="utf-8") as file:
-            for line in reversed(file.readlines()):
-                if not line.strip():
-                    continue
+        with evaluation_lock:
+            with path.open("r", encoding="utf-8") as file:
+                for line in reversed(file.readlines()):
+                    if not line.strip():
+                        continue
 
-                record = json.loads(line)
-                metrics = record.get("metrics", {})
+                    record = json.loads(line)
+                    metrics = record.get("metrics", {})
 
-                return {
-                    "latest": {
-                        "faithfulness": metrics.get("faithfulness"),
-                        "answer_relevancy": metrics.get("answer_relevancy"),
-                        "context_precision": metrics.get("context_precision"),
-                    },
-                    "status": record.get("status", "unknown"),
-                }
+                    return {
+                        "latest": {
+                            "faithfulness": metrics.get("faithfulness"),
+                            "answer_relevancy": metrics.get("answer_relevancy"),
+                            "context_precision": metrics.get("context_precision"),
+                        },
+                        "status": record.get("status", "unknown"),
+                    }
 
     except (OSError, json.JSONDecodeError):
         logger.exception("Could not read the evaluation log.")
@@ -158,6 +159,11 @@ async def run_ragas_evaluation(
             contexts=contexts,
             include_errors=True,
         )
+        record["metrics"] = {
+            "faithfulness": scores.get("faithfulness"),
+            "answer_relevancy": scores.get("answer_relevancy"),
+            "context_precision": scores.get("context_precision"),
+        }
         if metric_errors:
             record["metric_errors"] = metric_errors
         else:

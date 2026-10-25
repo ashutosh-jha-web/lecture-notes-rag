@@ -6,6 +6,7 @@ import time
 from functools import lru_cache
 from typing import Any
 
+import numpy as np
 from openai import AsyncOpenAI
 from ragas.embeddings import HuggingFaceEmbeddings
 from ragas.llms import llm_factory
@@ -14,18 +15,25 @@ from ragas.metrics.collections import (
     ContextPrecisionWithoutReference,
     Faithfulness,
 )
+from ragas.metrics.collections.answer_relevancy.util import (
+    AnswerRelevanceInput,
+    AnswerRelevanceOutput,
+)
 from ragas.metrics.collections.faithfulness.metric import (
     NLIStatementInput,
     NLIStatementOutput,
 )
 
-from app.config import CHAT_MODEL, GOOGLE_API_KEY, EMBEDDING_MODEL
-
+from app.config import (
+    EVALUATION_MODEL,
+    GOOGLE_API_KEY,
+    EMBEDDING_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
 EVALUATION_CONCURRENCY = 3
-FAITHFULNESS_BATCH_SIZE = 5
+FAITHFULNESS_BATCH_SIZE = 15
 EVALUATION_TIMEOUT_SECONDS = 90.0
 
 _evaluation_semaphore = asyncio.Semaphore(EVALUATION_CONCURRENCY)
@@ -51,6 +59,47 @@ def normalize_score(value: Any) -> float | None:
             return max(0.0, min(1.0, score))
 
     return None
+
+
+async def run_metric_with_retries(
+    metric: Any,
+    kwargs: dict[str, Any],
+    *,
+    max_attempts: int = 3,
+) -> Any:
+    """Retry transient metric failures with bounded exponential backoff."""
+    for attempt in range(max_attempts):
+        try:
+            return await metric.ascore(**kwargs)
+        except Exception as exc:
+            message = str(exc).lower()
+            transient = any(
+                marker in message
+                for marker in (
+                    "429",
+                    "503",
+                    "resource_exhausted",
+                    "rate limit",
+                    "temporarily unavailable",
+                    "service unavailable",
+                    "connection error",
+                    "timeout",
+                )
+            )
+
+            if not transient or attempt == max_attempts - 1:
+                raise
+
+            delay = min(2**attempt, 4)
+            logger.warning(
+                "[RAGAS] Transient failure; retrying attempt %d/%d "
+                "after %ds: %s",
+                attempt + 2,
+                max_attempts,
+                delay,
+                exc,
+            )
+            await asyncio.sleep(delay)
 
 
 @lru_cache(maxsize=1)
@@ -109,6 +158,118 @@ class BatchedFaithfulness(Faithfulness):
             all_verdicts.extend(batch_verdicts)
 
         return NLIStatementOutput(statements=all_verdicts)
+
+
+class DebugAnswerRelevancy(AnswerRelevancy):
+    """Log generated questions and similarities without changing scoring."""
+
+    async def ascore(
+        self,
+        user_input: str,
+        response: str,
+    ):
+        if not user_input:
+            raise ValueError("user_input cannot be empty.")
+        if not response:
+            raise ValueError("response cannot be empty.")
+
+        generated_questions: list[str] = []
+        noncommittal_flags: list[int] = []
+
+        for index in range(self.strictness):
+            input_data = AnswerRelevanceInput(response=response)
+            prompt_string = self.prompt.to_string(input_data)
+
+            result = await self.llm.agenerate(
+                prompt_string,
+                AnswerRelevanceOutput,
+            )
+
+            if result.question:
+                generated_questions.append(result.question)
+                noncommittal_flags.append(result.noncommittal)
+
+                logger.info(
+                    "[RAGAS] Answer Relevancy generated question %d/%d: %s "
+                    "(noncommittal=%s)",
+                    index + 1,
+                    self.strictness,
+                    result.question,
+                    result.noncommittal,
+                )
+
+        if not generated_questions:
+            logger.warning(
+                "[RAGAS] Answer Relevancy generated no questions."
+            )
+            return await super().ascore(
+                user_input=user_input,
+                response=response,
+            )
+
+        all_noncommittal = bool(np.all(noncommittal_flags))
+
+        question_vec = np.asarray(
+            await self.embeddings.aembed_text(user_input)
+        ).reshape(1, -1)
+
+        generated_vecs = np.asarray(
+            await self.embeddings.aembed_texts(generated_questions)
+        ).reshape(len(generated_questions), -1)
+
+        norms = (
+            np.linalg.norm(generated_vecs, axis=1)
+            * np.linalg.norm(question_vec, axis=1)
+        )
+
+        if (
+            not np.all(np.isfinite(question_vec))
+            or not np.all(np.isfinite(generated_vecs))
+            or not np.all(np.isfinite(norms))
+            or np.any(norms <= 0)
+        ):
+            raise ValueError(
+                "Answer relevancy cannot be computed from invalid or zero-norm embeddings."
+            )
+
+        cosine_similarities = (
+            np.dot(generated_vecs, question_vec.T).reshape(-1) / norms
+        )
+
+        if not np.all(np.isfinite(cosine_similarities)):
+            raise ValueError("Answer relevancy produced non-finite cosine similarities.")
+
+        cosine_similarities = np.clip(cosine_similarities, -1.0, 1.0)
+
+
+
+        for generated_question, similarity in zip(
+            generated_questions,
+            cosine_similarities,
+        ):
+            logger.info(
+                "[RAGAS] Answer Relevancy similarity: %.4f | "
+                "original=%r | generated=%r",
+                float(similarity),
+                user_input,
+                generated_question,
+            )
+
+        score = float(cosine_similarities.mean()) * int(
+            not all_noncommittal
+        )
+
+        logger.info(
+            "[RAGAS] Answer Relevancy final score: %.4f "
+            "(all_noncommittal=%s)",
+            score,
+            all_noncommittal,
+        )
+
+        # Match RAGAS 0.4.3's result type.
+        from ragas.metrics.result import MetricResult
+
+        return MetricResult(value=score)
 
 
 def log_failed_completion(name: str, exc: Exception) -> None:
@@ -188,7 +349,7 @@ async def aevaluate_rag_response(
 
     try:
         model_name = (
-            CHAT_MODEL.removeprefix("models/").removeprefix("gemini/")
+            EVALUATION_MODEL.removeprefix("models/").removeprefix("gemini/")
         )
 
         evaluator_llm = llm_factory(
@@ -216,9 +377,10 @@ async def aevaluate_rag_response(
             ),
             (
                 "answer_relevancy",
-                AnswerRelevancy(
+                DebugAnswerRelevancy(
                     llm=evaluator_llm,
                     embeddings=evaluator_embeddings,
+                    strictness=1,
                 ),
                 {
                     "user_input": question,
@@ -246,8 +408,9 @@ async def aevaluate_rag_response(
             metric_start = time.perf_counter()
             logger.info("[RAGAS] Starting %s", name)
 
+
             try:
-                score = await metric.ascore(**kwargs)
+                score = await run_metric_with_retries(metric, kwargs)
                 normalized = normalize_score(score)
                 elapsed = time.perf_counter() - metric_start
 
@@ -273,7 +436,7 @@ async def aevaluate_rag_response(
 
             except Exception as exc:
                 elapsed = time.perf_counter() - metric_start
-                error_message = f"{type(exc).__name__}: {exc}"
+                error_message = f"{type(exc).__name__}: Evaluation Failed."
 
                 logger.error(
                     "[RAGAS] %s failed after %.2fs: %s",

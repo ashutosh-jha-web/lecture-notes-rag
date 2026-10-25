@@ -265,7 +265,8 @@ Important settings are available through environment variables:
 | Variable | Purpose |
 |---|---|
 | `GOOGLE_API_KEY` | API authentication |
-| `GEMINI_CHAT_MODEL` | Configured Gemini model |
+| `GEMINI_CHAT_MODEL` | Configured Gemini chat model |
+| `GEMINI_EVALUATION_MODEL` | Optional RAGAS evaluation model; defaults to `GEMINI_CHAT_MODEL` |
 | `EMBEDDING_MODEL` | Local embedding model |
 | `RERANKER_MODEL` | Cross-encoder model |
 | `CHUNK_SIZE` | Target text chunk size |

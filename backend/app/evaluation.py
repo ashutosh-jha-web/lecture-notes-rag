@@ -1,10 +1,15 @@
 
 import json
 import uuid
+import threading
 from pathlib import Path
 from datetime import datetime, timezone
 
 from app.config import BACKEND_DIR, EVAL_LOG_PATH
+
+
+# Shared lock for all evaluation-log reads and writes.
+evaluation_lock = threading.RLock()
 
 
 def resolve_eval_path(path: str | Path = EVAL_LOG_PATH) -> Path:
@@ -30,17 +35,22 @@ def append_evaluation(
         row["evaluation_id"] = str(uuid.uuid4())
     row.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
 
-    if target.exists():
-        with target.open("r", encoding="utf-8") as file:
-            for line in file:
-                if not line.strip():
-                    continue
-                existing = json.loads(line)
-                if existing.get("evaluation_id") == row["evaluation_id"]:
-                    raise ValueError("Evaluation ID already exists: " + row["evaluation_id"])
+    with evaluation_lock:
+        if target.exists():
+            with target.open("r", encoding="utf-8") as file:
+                for line in file:
+                    if not line.strip():
+                        continue
 
-    with target.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    existing = json.loads(line)
+                    if existing.get("evaluation_id") == row["evaluation_id"]:
+                        raise ValueError(
+                            "Evaluation ID already exists: "
+                            + row["evaluation_id"]
+                        )
+
+        with target.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     record["evaluation_id"] = row["evaluation_id"]
     record["timestamp"] = row["timestamp"]
@@ -60,37 +70,45 @@ def update_evaluation(
     if not evaluation_id:
         raise ValueError("Cannot update an evaluation without evaluation_id.")
 
-    rows = []
+    with evaluation_lock:
+        rows = []
 
-    if target.exists():
-        with target.open("r", encoding="utf-8") as file:
-            for line in file:
-                if not line.strip():
-                    continue
-                rows.append(json.loads(line))
+        if target.exists():
+            with target.open("r", encoding="utf-8") as file:
+                for line in file:
+                    if not line.strip():
+                        continue
+                    rows.append(json.loads(line))
 
-    matches = [
-        index for index, row in enumerate(rows)
-        if row.get("evaluation_id") == evaluation_id
-    ]
+        matches = [
+            index
+            for index, row in enumerate(rows)
+            if row.get("evaluation_id") == evaluation_id
+        ]
 
-    if not matches:
-        raise ValueError("Evaluation record not found: " + evaluation_id)
-    if len(matches) > 1:
-        raise ValueError("Cannot update evaluation with duplicate ID: " + evaluation_id)
+        if not matches:
+            raise ValueError(
+                "Evaluation record not found: " + evaluation_id
+            )
 
-    index = matches[0]
-    rows[index] = {
-        **rows[index],
-        **record,
-        "evaluation_id": evaluation_id,
-    }
+        if len(matches) > 1:
+            raise ValueError(
+                "Cannot update evaluation with duplicate ID: "
+                + evaluation_id
+            )
 
-    with target.open("w", encoding="utf-8") as file:
-        for row in rows:
-            file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        index = matches[0]
+        rows[index] = {
+            **rows[index],
+            **record,
+            "evaluation_id": evaluation_id,
+        }
 
-    return rows[index]
+        with target.open("w", encoding="utf-8") as file:
+            for row in rows:
+                file.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+        return rows[index]
 
 
 def create_evaluation_record(

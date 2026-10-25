@@ -73,3 +73,29 @@ def test_answer_question_with_no_documents_skips_llm():
         "I cannot determine the answer from the provided document."
     )
     assert result["sources"] == []
+
+
+def test_answer_question_with_context_returns_answer_and_sources(monkeypatch):
+    from langchain_core.documents import Document
+    import app.rag_chain as rag_chain
+
+    docs = [
+        Document(
+            page_content="TF-IDF represents text using term frequency and inverse document frequency.",
+            metadata={"source": "NLP_Notes.pdf", "page": 2, "chunk_id": "CHK-4"},
+        )
+    ]
+
+    class FakeChain:
+        def invoke(self, inputs):
+            assert "TF-IDF" in inputs["context"]
+            return "The context describes TF-IDF using term frequency and inverse document frequency."
+
+    monkeypatch.setattr(rag_chain, "create_answer_chain", lambda: FakeChain())
+
+    result = rag_chain.answer_question("What is TF-IDF?", docs)
+
+    assert "term frequency" in result["answer"]
+    assert result["sources"][0]["source"] == "NLP_Notes.pdf"
+    assert result["sources"][0]["page"] == 2
+    assert result["sources"][0]["chunk_id"] == "CHK-4"

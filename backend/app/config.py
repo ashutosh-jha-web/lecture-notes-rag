@@ -11,6 +11,12 @@ load_dotenv(BACKEND_DIR / ".env")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash-lite")
 
+# Separate model for RAGAS evaluation
+EVALUATION_MODEL = os.getenv(
+    "GEMINI_EVALUATION_MODEL",
+    CHAT_MODEL,
+)
+
 # Local embedding and reranking models
 EMBEDDING_MODEL = os.getenv(
     "EMBEDDING_MODEL",

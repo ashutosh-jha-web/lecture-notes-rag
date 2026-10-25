@@ -47,25 +47,32 @@ export default function VoiceInput({
 }: VoiceInputProps) {
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState("");
+
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const activeRef = useRef(false);
+  const disabledRef = useRef(disabled);
 
   useEffect(() => {
-    return () => {
-      recognitionRef.current?.abort();
-      recognitionRef.current = null;
-    };
-  }, []);
+    disabledRef.current = disabled;
 
-  useEffect(() => {
     if (disabled && recognitionRef.current) {
-      recognitionRef.current.stop();
+      activeRef.current = false;
+      recognitionRef.current.abort();
       recognitionRef.current = null;
       setListening(false);
     }
   }, [disabled]);
 
+  useEffect(() => {
+    return () => {
+      activeRef.current = false;
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
+
   function startListening() {
-    if (disabled || listening) return;
+    if (disabledRef.current || activeRef.current) return;
 
     const speechWindow = window as SpeechWindow;
     const Recognition =
@@ -82,11 +89,23 @@ export default function VoiceInput({
     setMessage("");
 
     const recognition = new Recognition();
+
     recognition.lang = "en-US";
     recognition.interimResults = true;
     recognition.continuous = false;
 
+    activeRef.current = true;
+    recognitionRef.current = recognition;
+
     recognition.onresult = (event) => {
+      if (
+        !activeRef.current ||
+        disabledRef.current ||
+        recognitionRef.current !== recognition
+      ) {
+        return;
+      }
+
       let transcript = "";
 
       for (let i = 0; i < event.results.length; i++) {
@@ -99,6 +118,12 @@ export default function VoiceInput({
     };
 
     recognition.onerror = (event) => {
+      if (recognitionRef.current !== recognition) return;
+
+      activeRef.current = false;
+      recognitionRef.current = null;
+      setListening(false);
+
       if (
         event.error === "not-allowed" ||
         event.error === "service-not-allowed"
@@ -109,24 +134,25 @@ export default function VoiceInput({
       } else if (event.error === "audio-capture") {
         setMessage("No microphone found. Check your microphone.");
       } else if (event.error !== "aborted") {
-        setMessage("Voice input failed. Please try again or type your question.");
+        setMessage(
+          "Voice input failed. Please try again or type your question."
+        );
       }
-
-      setListening(false);
-      recognitionRef.current = null;
     };
 
     recognition.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
+      if (recognitionRef.current !== recognition) return;
 
-    recognitionRef.current = recognition;
+      activeRef.current = false;
+      recognitionRef.current = null;
+      setListening(false);
+    };
 
     try {
       recognition.start();
       setListening(true);
     } catch {
+      activeRef.current = false;
       recognitionRef.current = null;
       setListening(false);
       setMessage("Could not start the microphone. Please try again.");
@@ -134,8 +160,16 @@ export default function VoiceInput({
   }
 
   function stopListening() {
-    recognitionRef.current?.stop();
+    const recognition = recognitionRef.current;
+
+    if (!recognition) return;
+
+    // Ignore any pending speech events immediately.
+    activeRef.current = false;
+    recognitionRef.current = null;
     setListening(false);
+
+    recognition.stop();
   }
 
   return (
