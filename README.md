@@ -371,6 +371,19 @@ PYTHONPATH=backend pytest backend/tests/ -q
 
 Tests that require live model services, API credentials, or manual execution may have additional requirements. Check each test file before running those checks.
 
+
+
+## Screenshots
+
+### PDF Upload
+![PDF Upload](screenshots/pdf-upload.png)
+
+### Question and Answer
+![Question and Answer](screenshots/question-answer.png)
+
+### RAGAS Evaluation
+![RAGAS Evaluation](screenshots/ragas-evaluation.png)
+
 ## Limitations
 
 - **Local deployment:** The application is currently intended to run locally; no public hosted URL is provided.
